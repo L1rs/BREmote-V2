@@ -75,7 +75,7 @@ void ICACHE_RAM_ATTR packetReceived(void)
   }
   else
   {
-    rfInterrupt = false;
+    rfInterrupt = true;
   }
 }
 

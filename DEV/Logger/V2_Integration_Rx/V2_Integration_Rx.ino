@@ -28,8 +28,6 @@ void setup()
 
   checkButtons();
   if(usrConf.paired == 2) waitForPairing();
-  
-  rxIsrState = 1;
 
   initRMT();
 
@@ -50,6 +48,8 @@ void setup()
 
   //Checks if there is connection and blinks LED, low prio
   xTaskCreatePinnedToCore(checkConnStatus, "Check_conn_staus_200ms", 2048, NULL, 2, &checkConnStatusHandle, 0);
+
+  rxIsrState = 1;
 
   initLogger();
   if(usrConf.debug_byte & 1<<3)
@@ -94,6 +94,23 @@ void loop()
         wetness_counter = 0;
       }
     }
+    if(usrConf.bms_det_active)
+    {
+      if(!aw.digitalRead(AP_BMS_MEAS))
+      {
+        if(telemetry.error_code == 0)
+        {
+        telemetry.error_code = 8;
+        }
+      }
+      else
+      {
+        if(telemetry.error_code == 8)
+        {
+        telemetry.error_code = 0;
+        }
+      }
+    }
 
     if(usrConf.data_src == 1)
     {
@@ -110,8 +127,6 @@ void loop()
       gpsPoll();
     }
   }
-
-  telemetry.foil_speed = gps.speed;
 
   vTaskDelay(pdMS_TO_TICKS(10));
 }

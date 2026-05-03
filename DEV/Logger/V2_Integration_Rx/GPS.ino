@@ -641,7 +641,7 @@ void gpsPoll() {
     if (gpsTiny_Rx.speed.isUpdated() || gpsTiny_Rx.speed.isValid()) {
       float s = gpsTiny_Rx.speed.kmph();
       if (s < 0.0f) s = 0.0f;
-      if (s > 10.0f) s = 150.0f;
+      if (s > 150.0f) s = 150.0f;
       gps.speed = s;
     }
     // Cap depuis NMEA (TinyGPS++)
@@ -663,7 +663,7 @@ void gpsPoll() {
     gps.fix_quality = gpsTiny_Rx.location.isValid() ? 2 : gps.fix_quality;
     
     // Update speed for telemetry
-    if (gps.fix_quality >= 2) { // Si on a au moins un fix 2D
+    if (gps.fix_quality >= 2 && gps.hdop < 20) { // Si on a au moins un fix 2D
       telemetry.foil_speed = (uint8_t)constrain(gps.speed, 0, 254);
     } else {
       telemetry.foil_speed = 0xFF; // Pas de fix valide

@@ -204,6 +204,8 @@ volatile bool rxIsrState = 0;
 
 volatile int unpairedBlink = 0;
 
+volatile unsigned long last_successful_log = 0;
+
 volatile unsigned long last_packet = 0;
 volatile unsigned long radioBufferResetTimeout = 0;
 

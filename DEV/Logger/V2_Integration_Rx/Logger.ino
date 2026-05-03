@@ -223,6 +223,10 @@ void loggerTask(void* parameter) {
           if (written != sizeof(VescLogData)) {
             Serial.printf("Write error: wrote %u of %u bytes\n", written, sizeof(VescLogData));
           }
+          else
+          {
+            last_successful_log = millis();
+          }
         }
         xSemaphoreGive(fileMutex);
       }
