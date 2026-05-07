@@ -6,7 +6,7 @@ void startupADS()
     Serial.println(" Failed");
     while (true) delay(100);
   }
-  ads.setGain(GAIN_TWOTHIRDS);
+  ads.setGain(GAIN_ONE);
   Serial.println(" Done");
 }
 

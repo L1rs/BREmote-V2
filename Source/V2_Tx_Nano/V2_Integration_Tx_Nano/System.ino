@@ -463,13 +463,13 @@ void checkCharger()
     uint16_t bat_volt = ads.getLastConversionResults();
     uint16_t c_bat_volt = (uint16_t)((float)bat_volt * usrConf.ubat_cal * 100.0);
 
-    if(chgstat < 660)
+    if(chgstat < 1000)
     {
       //Not charging
       Serial.println(" Done");
       break;
     }
-    else if(chgstat > 4000 && chgstat < 6600)
+    else if(chgstat > 6000 && chgstat < 10000)
     {
       //Charging
 
@@ -526,7 +526,7 @@ void checkCharger()
       checkSerial();
       delay(200);
     }
-    else if(chgstat > 7500 && chgstat < 12000)
+    else if(chgstat > 11000 && chgstat < 18000)
     {
       if(chargeAnimationPos == 0)
       {

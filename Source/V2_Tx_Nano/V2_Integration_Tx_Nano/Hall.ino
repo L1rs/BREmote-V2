@@ -326,7 +326,7 @@ void runMenu()
 
 void checkCal()
 {
-  #define CAL_MIN_DIFF 400
+  #define CAL_MIN_DIFF 100
 
   //Check if calibration is OK
   if(!usrConf.cal_ok)
@@ -418,7 +418,7 @@ void checkCal()
 
     if(usrConf.tog_left > usrConf.tog_mid && usrConf.tog_mid > usrConf.tog_right)
     {
-      if(usrConf.tog_left - usrConf.tog_mid > CAL_MIN_DIFF/2 &&  usrConf.tog_mid - usrConf.tog_right > CAL_MIN_DIFF/2)
+      if(usrConf.tog_left - usrConf.tog_mid > CAL_MIN_DIFF/3 &&  usrConf.tog_mid - usrConf.tog_right > CAL_MIN_DIFF/3)
       {
         usrConf.tog_left -= usrConf.cal_offset;
         usrConf.tog_right += usrConf.cal_offset;

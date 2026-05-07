@@ -3,6 +3,7 @@
 SX1262 radio = new Module(P_LORA_NSS, P_LORA_DIO, P_LORA_RST, P_LORA_BUSY);
 Adafruit_AW9523 aw;
 Ticker ticksrc;
+WebServer server(80);
 
 void setup()
 {
@@ -126,6 +127,18 @@ void loop()
       //Delays 300ms non-blocking
       gpsPoll();
     }
+  }
+
+  bool shouldEnable = (millis() - last_packet > 10000);
+
+  if (shouldEnable && !webUiEnabled) {
+    enableWebUi();
+  } else if (!shouldEnable && webUiEnabled) {
+    disableWebUi();
+  }
+
+  if (webUiEnabled) {
+    server.handleClient();
   }
 
   vTaskDelay(pdMS_TO_TICKS(10));

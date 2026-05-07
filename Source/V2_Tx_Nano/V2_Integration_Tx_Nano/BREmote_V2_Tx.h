@@ -76,7 +76,7 @@ struct confStruct {
 };
 
 confStruct usrConf;
-confStruct defaultConf = {SW_VERSION,1,0,0,100,0,0,0,0,0,250,50,500,5000,2000,100,1000,10,2000,0,0,5,0,0,50,50,50,50,0.0002784957,0,{0, 0, 0}, {0, 0, 0}};
+confStruct defaultConf = {SW_VERSION,1,0,0,20,0,0,0,0,0,50,50,500,5000,2000,100,1000,10,2000,0,0,5,0,0,50,50,50,50,0.000185661992873,0,{0, 0, 0}, {0, 0, 0}};
 
 #define LED_BRIGHTNESS 3
 

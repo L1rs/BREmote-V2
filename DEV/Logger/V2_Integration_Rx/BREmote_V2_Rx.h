@@ -24,6 +24,9 @@
 #include "vesc_buffer.h"
 #include "vesc_crc.h"
 
+#include <WiFi.h>
+#include <WebServer.h>
+
 #define SW_VERSION 2
 const char* CONF_FILE_PATH = "/data.txt";
 const char* BC_FILE_PATH = "/batconf.txt";
@@ -198,6 +201,7 @@ SemaphoreHandle_t triggerReceiveSemaphore;
 /*
 ** Variables
 */
+bool webUiEnabled = false;
 
 volatile bool rfInterrupt = false;
 volatile bool rxIsrState = 0;
