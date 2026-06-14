@@ -36,8 +36,8 @@ void setup()
 
   gpsConfigure();
 
-  aw.digitalWrite(AP_EN_PWM0, 1);
-  aw.digitalWrite(AP_EN_PWM1, 1);
+  safeAwWrite(AP_EN_PWM0, 1);
+  safeAwWrite(AP_EN_PWM1, 1);
 
   triggerReceiveSemaphore = xSemaphoreCreateBinary();
   loopTaskHandle = xTaskGetCurrentTaskHandle();
@@ -97,7 +97,7 @@ void loop()
     }
     if(usrConf.bms_det_active)
     {
-      if(!aw.digitalRead(AP_BMS_MEAS))
+      if(!safeAwRead(AP_BMS_MEAS))
       {
         if(telemetry.error_code == 0)
         {

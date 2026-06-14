@@ -53,31 +53,53 @@ uint8_t esp_crc8(uint8_t *data, uint8_t length) {
 
 void startupAW()
 {
+  i2cMutex = xSemaphoreCreateMutex();
   Serial.print("Starting AW9532...");
   
-  if (! aw.begin(0x58)) {
-    Serial.println("AW9523 not found!");
-    while (1) delay(10);  // halt forever
+  if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+
+    if (! aw.begin(0x58)) {
+      Serial.println("AW9523 not found!");
+      while (1) delay(10);  // halt forever
+    }
+
+    aw.pinMode(AP_U1_MUX_0, OUTPUT);
+    aw.pinMode(AP_U1_MUX_1, OUTPUT);
+    aw.pinMode(AP_S_BIND, INPUT);
+    aw.pinMode(AP_S_AUX, INPUT);
+    aw.pinMode(AP_L_BIND, OUTPUT);
+    aw.pinMode(AP_L_AUX, OUTPUT);
+    aw.pinMode(AP_EN_BMS_MEAS, OUTPUT);
+    aw.pinMode(AP_BMS_MEAS, INPUT);
+    aw.pinMode(AP_EN_PWM0, OUTPUT);
+    aw.pinMode(AP_EN_PWM1, OUTPUT);
+    aw.pinMode(AP_EN_WET_MEAS, OUTPUT);
+    aw.pinMode(AP_WET_MEAS, INPUT);
+
+    aw.digitalWrite(AP_L_BIND, HIGH);
+    aw.digitalWrite(AP_L_AUX, HIGH);
+    aw.digitalWrite(AP_EN_BMS_MEAS, HIGH);
+    xSemaphoreGive(i2cMutex);
   }
 
-  aw.pinMode(AP_U1_MUX_0, OUTPUT);
-  aw.pinMode(AP_U1_MUX_1, OUTPUT);
-  aw.pinMode(AP_S_BIND, INPUT);
-  aw.pinMode(AP_S_AUX, INPUT);
-  aw.pinMode(AP_L_BIND, OUTPUT);
-  aw.pinMode(AP_L_AUX, OUTPUT);
-  aw.pinMode(AP_EN_BMS_MEAS, OUTPUT);
-  aw.pinMode(AP_BMS_MEAS, INPUT);
-  aw.pinMode(AP_EN_PWM0, OUTPUT);
-  aw.pinMode(AP_EN_PWM1, OUTPUT);
-  aw.pinMode(AP_EN_WET_MEAS, OUTPUT);
-  aw.pinMode(AP_WET_MEAS, INPUT);
-
-  aw.digitalWrite(AP_L_BIND, HIGH);
-  aw.digitalWrite(AP_L_AUX, HIGH);
-  aw.digitalWrite(AP_EN_BMS_MEAS, HIGH);
-
   Serial.println(" Done");
+}
+
+void safeAwWrite(uint8_t pin, uint8_t val) {
+  if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+    aw.digitalWrite(pin, val);
+    xSemaphoreGive(i2cMutex);
+  }
+}
+
+// Safe read wrapper
+uint8_t safeAwRead(uint8_t pin) {
+  uint8_t val = 1; // Default to HIGH in case the mutex fails
+  if (xSemaphoreTake(i2cMutex, portMAX_DELAY) == pdTRUE) {
+    val = aw.digitalRead(pin);
+    xSemaphoreGive(i2cMutex);
+  }
+  return val;
 }
 
 // Timed GPS lock: force GPS channel (1) until deadline
@@ -135,27 +157,27 @@ void setUartMux(int channel)
 	}
 	if(channel == 0)
 	{
-		aw.digitalWrite(AP_U1_MUX_0, LOW);
-		aw.digitalWrite(AP_U1_MUX_1, LOW);
+		safeAwWrite(AP_U1_MUX_0, LOW);
+		safeAwWrite(AP_U1_MUX_1, LOW);
 	}
 	if(channel == 1)
 	{
-		aw.digitalWrite(AP_U1_MUX_0, HIGH);
-		aw.digitalWrite(AP_U1_MUX_1, LOW);
+		safeAwWrite(AP_U1_MUX_0, HIGH);
+		safeAwWrite(AP_U1_MUX_1, LOW);
 	}
 }
 
 void checkWetness()
 {
-  aw.digitalWrite(AP_EN_WET_MEAS, HIGH);
+  safeAwWrite(AP_EN_WET_MEAS, HIGH);
   vTaskDelay(pdMS_TO_TICKS(50));
-  if(!aw.digitalRead(AP_WET_MEAS))
+  if(!safeAwRead(AP_WET_MEAS))
   {
     uint8_t amt = 0;
     for(uint8_t i = 0; i < 5; i++)
     {
       vTaskDelay(pdMS_TO_TICKS(50));
-      amt += aw.digitalRead(AP_WET_MEAS);
+      amt += safeAwRead(AP_WET_MEAS);
     }
     if(amt == 0)
     {
@@ -172,7 +194,7 @@ void checkWetness()
       telemetry.error_code = 0;
     }
   }
-  aw.digitalWrite(AP_EN_WET_MEAS, LOW);
+  safeAwWrite(AP_EN_WET_MEAS, LOW);
 }
 
 void getUbatLoop()
@@ -252,9 +274,9 @@ void blinkErr(int num, uint8_t pin)
 {
   for(int i = 0; i < num; i++)
   {
-    aw.digitalWrite(pin, LOW);
+    safeAwWrite(pin, LOW);
     delay(200);
-    aw.digitalWrite(pin, HIGH);
+    safeAwWrite(pin, HIGH);
     delay(200);
   }
   delay(500);
@@ -265,9 +287,9 @@ void blinkBind(int num)
 {
   for(int i = 0; i < num; i++)
   {
-    aw.digitalWrite(AP_L_BIND, LOW);
+    safeAwWrite(AP_L_BIND, LOW);
     delay(50);
-    aw.digitalWrite(AP_L_BIND, HIGH);
+    safeAwWrite(AP_L_BIND, HIGH);
     delay(50);
   } 
 }
@@ -773,12 +795,12 @@ void serPrintConf()
 
 void checkButtons()
 {
-  if(!aw.digitalRead(AP_S_BIND))
+  if(!safeAwRead(AP_S_BIND))
   {
-    if(!aw.digitalRead(AP_S_AUX))
+    if(!safeAwRead(AP_S_AUX))
     {
       delay(10);
-      if(!aw.digitalRead(AP_S_AUX))
+      if(!safeAwRead(AP_S_AUX))
       {
         Serial.println("Deleting config and rebooting");
         deleteConfFromSPIFFS();
@@ -787,7 +809,7 @@ void checkButtons()
       }
     }
     delay(10);
-    if(!aw.digitalRead(AP_S_BIND))
+    if(!safeAwRead(AP_S_BIND))
     {
       //Start pairing
       waitForPairing();
@@ -809,7 +831,7 @@ void checkConnStatus(void *parameter)
         if(bind_pin_state != 1)
         {
           bind_pin_state = 1;
-          aw.digitalWrite(AP_L_BIND, LOW);
+          safeAwWrite(AP_L_BIND, LOW);
         }
       }
       else
@@ -817,12 +839,12 @@ void checkConnStatus(void *parameter)
         if(bind_pin_state)
         {
           bind_pin_state = 0;
-          aw.digitalWrite(AP_L_BIND, HIGH);
+          safeAwWrite(AP_L_BIND, HIGH);
         }
         else
         {
           bind_pin_state = 1;
-          aw.digitalWrite(AP_L_BIND, LOW);
+          safeAwWrite(AP_L_BIND, LOW);
         }
       }
     }
@@ -832,9 +854,9 @@ void checkConnStatus(void *parameter)
       if(unpairedBlink == 4)
       {
         unpairedBlink = 0;
-        aw.digitalWrite(AP_L_BIND, LOW);
+        safeAwWrite(AP_L_BIND, LOW);
         vTaskDelay(pdMS_TO_TICKS(10));
-        aw.digitalWrite(AP_L_BIND, HIGH);
+        safeAwWrite(AP_L_BIND, HIGH);
       }
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);

@@ -350,7 +350,7 @@ void runMenu()
 
 void checkCal()
 {
-  #define CAL_MIN_DIFF 1000
+  #define CAL_MIN_DIFF 200
 
   //Check if calibration is OK
   if(!usrConf.cal_ok)

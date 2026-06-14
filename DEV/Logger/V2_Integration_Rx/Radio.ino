@@ -166,7 +166,7 @@ bool waitForPairing()
                   memcpy(usrConf.dest_address, buffer + 4, 3);
                   usrConf.paired = true;
                   saveConfToSPIFFS(usrConf);
-                  aw.digitalWrite(AP_L_BIND, LOW);
+                  safeAwWrite(AP_L_BIND, LOW);
                   return true;
                 }
               }

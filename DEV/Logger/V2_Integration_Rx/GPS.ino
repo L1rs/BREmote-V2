@@ -900,8 +900,8 @@ void verifyGPSMuxConfiguration() {
   delay(100);
   
   // Read multiplexer control pins state
-  bool mux0 = aw.digitalRead(AP_U1_MUX_0);
-  bool mux1 = aw.digitalRead(AP_U1_MUX_1);
+  bool mux0 = safeAwRead(AP_U1_MUX_0);
+  bool mux1 = safeAwRead(AP_U1_MUX_1);
   
   // Only show error if multiplexer fails
   if (!(mux0 == HIGH && mux1 == LOW)) {
