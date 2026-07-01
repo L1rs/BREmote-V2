@@ -72,7 +72,7 @@ struct confStruct {
     uint16_t gps_en;           // GPS runtime enable flag (0=disabled, 1=enabled)
     uint16_t followme_mode; // Follow-me runtime mode flag (0=disabled, 1=behind, 2=near_right, 3=near_left)
     uint16_t kalman_en;        // Kalman filter runtime enable flag (0=disabled, 1=enabled)
-    uint16_t speed_src;   //0: GPS RX kmh, 1: GPS RX knots, 2: GPS TX kmh, 3: GPS TX knots
+    uint16_t speed_src;   //0: GPS RX kmh, 1: GPS RX knots, 2: GPS TX kmh, 3: GPS TX knots, 4: Battery %
     
     //Follow-me timeouts (transmitted to RX via META)
     uint16_t tx_gps_stale_timeout_ms; // TX GPS data stale timeout (ms)
@@ -109,6 +109,7 @@ TaskHandle_t sendDataHandle = NULL;
 TaskHandle_t triggeredWaitForTelemetryHandle = NULL;
 TaskHandle_t measBufCalcHandle = NULL;
 TaskHandle_t updateBargraphsHandle = NULL;
+TaskHandle_t vibrationMotorHandle = NULL;
 
 //TaskHandle_t triggeredReceiveHandle = NULL;
 //TaskHandle_t checkConnStatusHandle = NULL;

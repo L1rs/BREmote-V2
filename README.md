@@ -109,6 +109,12 @@ Rx:
 # Changelog:
 
 ## V2.2.x
+### 2026-07-01
+* Add battery % instead of GPS (speed_src 4)
+* Add vibration motor
+### 2026-06-14
+* Merge Nano and "original" SW (Nano with display now)
+* Add I2C Mutex to logger software
 ### 2026-02-12
 * Add Nano Mech. and SW files (BETA)
 * Add Rx Logger in DEV folder (BETA)

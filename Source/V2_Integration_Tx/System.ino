@@ -234,6 +234,30 @@ void checkStartupButtons()
   }
 }
 
+void vibrationMotor(void *parameter)
+{
+  while (1) 
+  {
+    if(remote_error)
+    {
+      pinMode(P_MOT, OUTPUT);
+      analogWrite(P_MOT, 180);
+      delay(100);
+      analogWrite(P_MOT, 0);
+      delay(100);
+      analogWrite(P_MOT, 180);
+      delay(100);
+      analogWrite(P_MOT, 0);
+      delay(10000);
+    }
+    else
+    {
+      pinMode(P_MOT, INPUT);
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));
+  }
+}
+
 void checkSerial()
 {
   if(!serialOff)
