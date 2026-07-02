@@ -86,7 +86,7 @@ bool initiatePairing()
       return false;  // Too many conflicts
   }
   
-  uint8_t pairingPacket[7];  // 0xAB + 3 bytes address + CRC
+  uint8_t pairingPacket[8];  // 0xAB + 3 bytes address + CRC
   unsigned long startTime = millis();
   
   // Prepare pairing packet
@@ -223,7 +223,10 @@ void checkPairing()
 void sendData(void *parameter)
 {
   TickType_t xLastWakeTime = xTaskGetTickCount();
-  const TickType_t xFrequency = pdMS_TO_TICKS(100);
+  
+  static uint32_t base_interval = 100;
+  static uint8_t consecutive_misses = 0;
+  static uint8_t consecutive_successes = 0;
 
   while(1)
   {
@@ -249,21 +252,86 @@ void sendData(void *parameter)
 
       sendArray[5] = esp_crc8(sendArray, 5);
 
-      rxprint("Sending: ")
+      rxprint("Sending: ");
       #ifdef DEBUG_RX
       printHexArray(sendArray, 6);
       #endif
 
+      radio.clearIrqFlags(RADIOLIB_SX126X_IRQ_TX_DONE);
       radio.implicitHeader(6);
       radio.startTransmit(sendArray, 6);
       num_sent_packets++;
-      vTaskDelay(pdMS_TO_TICKS(10));
+      
+      // Wait for transmission to finish
+      uint8_t txWaitTimeout = 0;
+      while((!(radio.getIrqFlags() & RADIOLIB_SX126X_IRQ_TX_DONE)) && txWaitTimeout < 100)
+      {
+        delayMicroseconds(200);
+        txWaitTimeout++;
+      }
+      radio.clearIrqFlags(RADIOLIB_SX126X_IRQ_TX_DONE);
+
       rfInterrupt = false;
       radio.implicitHeader(6);
       radio.startReceive();
       //trigger waitForTelemetry
       xTaskNotifyGive(triggeredWaitForTelemetryHandle);
+
+      // Wait 30ms to give the Rx board enough time to send its telemetry reply.
+      vTaskDelay(pdMS_TO_TICKS(30));
     }
+    
+    uint32_t extra_delay = 0;
+
+    // Startup protection: Ensure we've established a connection at least once 
+    // before applying collision backoffs (prevents triggering when Rx is off at boot)
+    if (usrConf.paired && last_packet > 0)
+    {
+      // If the packet was successfully received in this cycle, the delta will be ~25ms.
+      // If missed (collision or obstacle), last_packet is from a previous cycle (delta >= 125ms).
+      if (millis() - last_packet > 40) 
+      {
+        // === PACKET MISSED ===
+        consecutive_misses++;
+        consecutive_successes = 0; // Reset success streak
+        
+        // After 3 consecutive missed replies, downgrade to 200ms base
+        if (base_interval == 100 && consecutive_misses >= 3)
+        {
+          base_interval = 200;
+          Serial.println("Change to 200ms interval");
+        }
+
+        // Apply slot-based jitter based on current base interval state
+        extra_delay = random(0, 3) * 33;
+        Serial.print("Added random: ");
+        Serial.println(extra_delay);
+      }
+      else
+      {
+        // === PACKET RECEIVED CLEANLY ===
+        consecutive_misses = 0;
+        
+        // If we are degraded to 200ms, start counting successes to recover
+        if (base_interval == 200)
+        {
+          consecutive_successes++;
+          
+          // After 250 consecutive clean replies at 200ms (approx 50 seconds),
+          // assume the RF environment is clear and promote back to 100ms.
+          if (consecutive_successes >= 250)
+          {
+            base_interval = 100;
+            consecutive_successes = 0; // Reset for future use
+            Serial.println("Change to 100ms interval");
+          }
+        }
+      }
+    }
+
+    // Because vTaskDelayUntil calculates from the last wake time, adding extra_delay
+    // permanently shifts the phase of the timer forward into the new time slot.
+    TickType_t xFrequency = pdMS_TO_TICKS(base_interval + extra_delay);
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
@@ -276,7 +344,7 @@ void waitForTelemetry(void *parameter)
     //wait until called
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
     //wait until interrupt
-    while(!rfInterrupt) vTaskDelay(pdMS_TO_TICKS(5));
+    while(!rfInterrupt) vTaskDelay(pdMS_TO_TICKS(1));
 
     uint8_t rcvArray[6];
     if (radio.readData(rcvArray, 6) == RADIOLIB_ERR_NONE) 
@@ -306,6 +374,7 @@ void waitForTelemetry(void *parameter)
             remote_error = telemetry.error_code;
           }
           last_packet = millis();
+          local_link_quality = getLinkQuality(radio.getRSSI(), radio.getSNR());
         }
       }
     }
@@ -314,8 +383,6 @@ void waitForTelemetry(void *parameter)
       rxprintln("Rx err");
       rfInterrupt = false;
     }
-
-    local_link_quality = getLinkQuality(radio.getRSSI(), radio.getSNR());
 
     rxprint("RSSI: ");
     rxprint(radio.getRSSI());

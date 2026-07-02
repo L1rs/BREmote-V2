@@ -130,6 +130,7 @@ volatile bool rxIsrState = 0;
 volatile int unpairedBlink = 0;
 
 volatile unsigned long last_packet = 0;
+volatile unsigned long radioBufferResetTimeout = 0;
 
 volatile uint8_t telemetry_index = 0;
 // Buffer for received data

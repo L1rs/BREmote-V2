@@ -188,6 +188,7 @@ void triggeredReceive(void *parameter) {
     if (xSemaphoreTake(triggerReceiveSemaphore, portMAX_DELAY) == pdTRUE) 
     {
       //digitalWrite(P_UBAT_MEAS, HIGH);
+      bool startRcv = 0;
 
       uint8_t rcvArray[6];
       if (radio.readData(rcvArray, 6) == RADIOLIB_ERR_NONE) 
@@ -240,23 +241,32 @@ void triggeredReceive(void *parameter) {
             printHexArray(sendArray, 6);
             #endif
 
-            vTaskDelay(pdMS_TO_TICKS(10));
+            vTaskDelay(pdMS_TO_TICKS(6));
             //digitalWrite(P_UBAT_MEAS, HIGH);
+
             radio.implicitHeader(6);
             radio.startTransmit(sendArray, 6);
             //digitalWrite(P_UBAT_MEAS, LOW);
+            startRcv = 1;
+            
             //Wait for packet to be fully sent
-            vTaskDelay(pdMS_TO_TICKS(10));
-            radio.implicitHeader(6);
-            radio.startReceive();
+            uint8_t txWaitTimeout = 0;
+            while((!(radio.getIrqFlags() & RADIOLIB_SX126X_IRQ_TX_DONE)) && txWaitTimeout < 100)
+            {
+              delayMicroseconds(200);
+              txWaitTimeout++;
+            }
+            radio.clearIrqFlags(RADIOLIB_SX126X_IRQ_TX_DONE);
           }
         }
       }
       else
       {
+        startRcv = 1;
         rxprintln("Rx err");
       }
-      radio.startReceive();
+      
+      if(startRcv) radio.startReceive();
       rfInterrupt = false;
       //digitalWrite(P_UBAT_MEAS, LOW);
     }

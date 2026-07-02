@@ -110,6 +110,8 @@ Rx:
 
 ## V2.2.x
 ### 2026-07-01
+* Add rf packet collision detection (up to 5~6 riders close together)
+### 2026-07-01
 * Add battery % instead of GPS (speed_src 4)
 * Add vibration motor
 ### 2026-06-14

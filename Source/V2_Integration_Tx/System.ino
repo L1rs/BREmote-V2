@@ -3,7 +3,13 @@ void enterSetup()
   Serial.begin(115200);
   delay(100);
   Serial.println("");
-  Serial.println("Entering Setup...");  
+  Serial.println("Entering Setup...");
+
+  uint32_t seed = micros();
+  seed ^= usrConf.own_address[0] << 16;
+  seed ^= usrConf.own_address[1] << 8;
+  seed ^= usrConf.own_address[2];
+  randomSeed(seed);
 
   Serial.println("**************************************");
   Serial.println("**          BREmote V2 TX           **");

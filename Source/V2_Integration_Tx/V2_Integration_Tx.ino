@@ -25,10 +25,10 @@ void setup()
   startupRadio();
   radio.setDio1Action(packetReceived);
 
-  //Runs every 100ms and sends data to Rx, medium prio
-  xTaskCreatePinnedToCore(sendData, "Send_Data_100ms", 2048, NULL, 5, &sendDataHandle, 0);
   //Triggered by senData, waits from telem from Rx after sending data to it
   xTaskCreatePinnedToCore(waitForTelemetry, "wait_for_telem_triggered", 2048, NULL, 4, &triggeredWaitForTelemetryHandle, 0);
+  //Runs every 100ms and sends data to Rx, medium prio
+  xTaskCreatePinnedToCore(sendData, "Send_Data_100ms", 2048, NULL, 5, &sendDataHandle, 0);
   //Measure, Buffer and calculate inputs
   xTaskCreatePinnedToCore(measBufCalc, "meas_buf_calc_10ms", 2048, NULL, 6, &measBufCalcHandle, 0);
   //Update bargraphs

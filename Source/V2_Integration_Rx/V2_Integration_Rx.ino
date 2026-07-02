@@ -59,6 +59,14 @@ void loop()
 {
   checkSerial();
 
+  if(millis()-last_packet > 500 && millis() - radioBufferResetTimeout > 5000)
+  {
+    rxprintln("Emergency Radio Buffer Reset!");
+    radioBufferResetTimeout = millis();
+    radio.startReceive();
+    rfInterrupt = false;
+  }
+
   if(millis()-loop_timer > 1000)
   {
     loop_timer = millis();
