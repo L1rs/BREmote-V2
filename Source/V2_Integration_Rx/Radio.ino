@@ -4,6 +4,8 @@ void startupRadio()
 
   SPI.begin(P_SPI_SCK, P_SPI_MISO, P_SPI_MOSI);
 
+  radio.standbyXOSC = true;
+
   if(usrConf.rf_power < -9 || usrConf.rf_power > 22)
   {
     Serial.println("Error, invalid transmit power");
@@ -188,7 +190,6 @@ void triggeredReceive(void *parameter) {
     if (xSemaphoreTake(triggerReceiveSemaphore, portMAX_DELAY) == pdTRUE) 
     {
       //digitalWrite(P_UBAT_MEAS, HIGH);
-      bool startRcv = 0;
 
       uint8_t rcvArray[6];
       if (radio.readData(rcvArray, 6) == RADIOLIB_ERR_NONE) 
@@ -241,13 +242,12 @@ void triggeredReceive(void *parameter) {
             printHexArray(sendArray, 6);
             #endif
 
-            vTaskDelay(pdMS_TO_TICKS(6));
+            vTaskDelay(pdMS_TO_TICKS(2));
             //digitalWrite(P_UBAT_MEAS, HIGH);
 
             radio.implicitHeader(6);
             radio.startTransmit(sendArray, 6);
             //digitalWrite(P_UBAT_MEAS, LOW);
-            startRcv = 1;
             
             //Wait for packet to be fully sent
             uint8_t txWaitTimeout = 0;
@@ -262,11 +262,10 @@ void triggeredReceive(void *parameter) {
       }
       else
       {
-        startRcv = 1;
         rxprintln("Rx err");
       }
       
-      if(startRcv) radio.startReceive();
+      radio.startReceive();
       rfInterrupt = false;
       //digitalWrite(P_UBAT_MEAS, LOW);
     }

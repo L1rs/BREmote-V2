@@ -243,7 +243,7 @@ void checkStartupButtons()
 void vibrationMotor(void *parameter)
 {
   while (1) 
-  {
+  {/*
     if(remote_error)
     {
       pinMode(P_MOT, OUTPUT);
@@ -259,7 +259,7 @@ void vibrationMotor(void *parameter)
     else
     {
       pinMode(P_MOT, INPUT);
-    }
+    }*/
     vTaskDelay(pdMS_TO_TICKS(100));
   }
 }

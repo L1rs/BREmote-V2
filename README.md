@@ -109,6 +109,8 @@ Rx:
 # Changelog:
 
 ## V2.2.x
+### 2026-07-04
+* Further rf packet collision improvement (RadioLib bug [#1827](https://github.com/jgromes/RadioLib/issues/1827)
 ### 2026-07-01
 * Add rf packet collision detection (up to 5~6 riders close together)
 ### 2026-07-01

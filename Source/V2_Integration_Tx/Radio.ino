@@ -4,6 +4,8 @@ void startupRadio()
 
   SPI.begin(P_SPI_SCK, P_SPI_MISO, P_SPI_MOSI);
 
+  radio.standbyXOSC = true;
+
   if(usrConf.rf_power < -9 || usrConf.rf_power > 22)
   {
     Serial.println("Error, invalid transmit power");
