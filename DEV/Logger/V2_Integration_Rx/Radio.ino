@@ -4,6 +4,8 @@ void startupRadio()
 
   SPI.begin(P_SPI_SCK, P_SPI_MISO, P_SPI_MOSI);
 
+  radio.standbyXOSC = true;
+
   if(usrConf.rf_power < -9 || usrConf.rf_power > 22)
   {
     Serial.println("Error, invalid transmit power");
@@ -226,29 +228,40 @@ void triggeredReceive(void *parameter) {
             sendArray[3] = telemetry_index;
             sendArray[4] = ptr[telemetry_index];
             telemetry_index++;
-            if(telemetry_index >= sizeof(TelemetryPacket)) telemetry_index = 0;
+            if(telemetry_index >= sizeof(TelemetryPacket))
+            {
+              telemetry_index = 0;
+            }
+
             sendArray[5] = esp_crc8(sendArray, 5);
 
             #ifdef DEBUG_RX
             printHexArray(sendArray, 6);
             #endif
 
-            vTaskDelay(pdMS_TO_TICKS(10));
+            vTaskDelay(pdMS_TO_TICKS(2));
+            //digitalWrite(P_UBAT_MEAS, HIGH);
+
             radio.implicitHeader(6);
             radio.startTransmit(sendArray, 6);
-            vTaskDelay(pdMS_TO_TICKS(10));
-            // Prepare to receive next packet
-            radio.implicitHeader(RX_FORWARD_LEN);
-            radio.startReceive();
+            //digitalWrite(P_UBAT_MEAS, LOW);
+            
+            //Wait for packet to be fully sent
+            uint8_t txWaitTimeout = 0;
+            while((!(radio.getIrqFlags() & RADIOLIB_SX126X_IRQ_TX_DONE)) && txWaitTimeout < 100)
+            {
+              delayMicroseconds(200);
+              txWaitTimeout++;
+            }
+            radio.clearIrqFlags(RADIOLIB_SX126X_IRQ_TX_DONE);
           }
         }
       }
       else
       {
         rxprintln("Rx err");
-        radio.implicitHeader(RX_FORWARD_LEN);
-        radio.startReceive();
       }
+      
       radio.startReceive();
       rfInterrupt = false;
       //digitalWrite(P_UBAT_MEAS, LOW);
