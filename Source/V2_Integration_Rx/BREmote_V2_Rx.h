@@ -20,12 +20,20 @@
 #include "vesc_datatypes.h"
 #include "vesc_buffer.h"
 #include "vesc_crc.h"
+#include "kiss.h"
 
 #include <TinyGPS++.h> //TinyGPSPlus 1.0.3 Mikal Hart
+
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Update.h>
+
+#include "webserial.h"
 
 #define SW_VERSION 2
 const char* CONF_FILE_PATH = "/data.txt";
 const char* BC_FILE_PATH = "/batconf.txt";
+const char* WIFI_FILE_PATH = "/wifi.txt";
 
 /*
 ** Structs
@@ -168,6 +176,17 @@ uint8_t percent_last_val = 0xFF;
 uint8_t percent_last_thr = 1;
 unsigned long percent_last_thr_change = 0;
 
+//WiFi maintenance mode, credentials come from WIFI_FILE_PATH
+bool wifi_active = false;
+bool ota_started = false;
+String wifi_ssid = "";
+String wifi_pass = "";
+String wifi_otapass = "";
+
+//KISS ESC telemetry (data_src 3). Only voltage and temperature go on the
+//radio link, the rest is here for ?printKiss and for setting up the ESC.
+struct kissFrame kiss = {0, 0, 0, 0, 0};
+
 //#define VESC_MORE_VALUES
 #ifdef VESC_MORE_VALUES
   #define VESC_PACK_LEN 19
@@ -231,3 +250,12 @@ unsigned long percent_last_thr_change = 0;
 #define VESC_DEBUG_PRINT(x)
 #define VESC_DEBUG_PRINTLN(x)
 #endif
+
+/*
+** From here on every Serial.* call in the sketch goes through the WebSerial
+** instance, so the web terminal sees the same output and accepts the same
+** commands as the USB console. Must stay after all #include lines, otherwise
+** library headers would be rewritten too. Serial1 is untouched, the
+** preprocessor only replaces whole identifiers.
+*/
+#define Serial Dbg

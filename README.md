@@ -69,6 +69,40 @@ Rx:
 * Both pushed: Delete config
 
 
+# WiFi Maintenance:
+Both boards can be configured and updated over WiFi, so the Rx does not have to
+be opened up for a USB cable.
+
+Set the credentials once over USB, then reboot:
+```
+?setWifi:<ssid>,<wifi password>,<maintenance password>
+```
+No commas in the SSID or the maintenance password. `?clearWifi` removes them
+again, `?printWifi` shows the status.
+
+* Rx: joins the network at boot and switches WiFi off again as soon as the
+  remote sends its first packet. To reach it, power the Rx up with the remote
+  switched off. Nothing is running while riding.
+* Tx: joins the network in USB mode only (THR+Left at startup). The display
+  shows "USB" while connecting and "0T" once the network is up.
+
+The board registers itself with the router as `bremote-rx-<MAC>` or
+`bremote-tx-<MAC>`, so look the address up there once and give it a fixed one.
+There is no mDNS, `.local` names do not resolve.
+
+Open `http://<ip>/` for the web terminal. It takes every `?` command the USB
+console takes, so `?conf` and `?setConf:` work the same way and the
+[Config Tool](https://lbre.de/BREmote/struct.html) is still used for editing.
+User name is `bremote`, the password is the maintenance password.
+
+`/update` takes a firmware .bin from the browser (Sketch, Export Compiled
+Binary in the Arduino IDE).
+
+The web terminal is a fork of Luddi96's
+[Serial Terminal](https://lbre.de/BREmote/sertest.html) with the Web Serial API
+replaced by plain HTTP, see `page_term.h`.
+
+
 # Connection Examples:
 
 <details>
@@ -109,6 +143,11 @@ Rx:
 # Changelog:
 
 ## V2.2.x
+### 2026-08-24
+* Add WiFi maintenance for Rx and Tx: web terminal with all serial commands, plus firmware upload over the browser
+* Add KISS ESC telemetry for BLHeli_32 and AM32 (data_src 3, same connector as the VESC UART)
+* Add info pages on the Tx display (steer_enabled 2, long right toggle cycles speed / battery / temperature)
+* Reject a config string of the wrong size or version in ?setConf instead of writing it
 ### 2026-07-04
 * Further rf packet collision improvement (RadioLib bug [#1827](https://github.com/jgromes/RadioLib/issues/1827)
 ### 2026-07-01
