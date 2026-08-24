@@ -484,3 +484,30 @@ void updateBargraphs(void *parameter)
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
   }
 }
+
+//Two digits for one telemetry value, dashes while it is not known
+void displayValue(uint8_t val)
+{
+  if(val == 0xFF)
+  {
+    displayDigits(DASH, DASH);
+    return;
+  }
+
+  uint8_t v = constrain(val, 0, 99);
+  displayDigits(v/10, v-10*(v/10));
+}
+
+//Names the page that was just selected for a moment, then loop() takes over.
+//5 stands for S as everywhere else in this sketch, see "SAVE" and "USB".
+void showPageLabel()
+{
+  uint8_t label = 5;
+
+  if(display_page == 1) label = LET_B;
+  else if(display_page == 2) label = LET_C;
+
+  displayDigits(label, DASH);
+  updateDisplay();
+  delay(400);
+}
