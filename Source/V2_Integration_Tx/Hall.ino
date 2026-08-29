@@ -70,7 +70,11 @@ void calcFilter()
 
 
   //Block toggle input when steering
-  if((thr_scaled > 3 && system_locked == 0 && !in_menu && usrConf.steer_enabled)||(usrConf.no_gear && usrConf.no_lock && !remote_error && !in_setup))
+  //steer_enabled 2 hands the toggle to the info pages, so it must not go into
+  //steering at all. Without the first check the no_gear/no_lock shortcut below
+  //would keep it in steering permanently and runMenu() would never see an input.
+  if(usrConf.steer_enabled != 2 &&
+     ((thr_scaled > 3 && system_locked == 0 && !in_menu && usrConf.steer_enabled == 1)||(usrConf.no_gear && usrConf.no_lock && !remote_error && !in_setup)))
   {
     //If so, block steer and reset counter
     toggle_blocked_by_steer = 1;
@@ -270,18 +274,16 @@ void runMenu()
           {
             if(thr_scaled < 10)
             {
-              if(0) //TODO: Add the enabler from usrConf later
+              if(usrConf.steer_enabled == 2)
               {
-                if(followme_enabled)
-                {
-                  followme_enabled = 0;
-                  scroll4Digits(5,LET_T,LET_E,LET_E,150);
-                }
-                else
-                {
-                  followme_enabled = 1;
-                  scroll4Digits(LET_F,0,LET_L,LET_L,150);
-                }
+                //Steering is off in this mode, so the toggle is free: a long
+                //right push cycles through the info pages
+                display_page++;
+                if(display_page > MAX_DISPLAY_PAGE) display_page = 0;
+                showPageLabel();
+                //One push, one page. The surrounding loop would otherwise run
+                //through again while the toggle is still held.
+                while(ctplus()) delay(10);
               }
               in_menu = usrConf.menu_timeout;
             }
