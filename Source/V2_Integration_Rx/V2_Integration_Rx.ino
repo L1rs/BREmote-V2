@@ -1,9 +1,10 @@
 #include "BREmote_V2_Rx.h"
 
-SX1262 radio = new Module(P_LORA_NSS, P_LORA_DIO, P_LORA_RST, P_LORA_BUSY);
+SX1262Fallback radio = new Module(P_LORA_NSS, P_LORA_DIO, P_LORA_RST, P_LORA_BUSY);
 Adafruit_AW9523 aw;
 Ticker ticksrc;
 TinyGPSPlus gps;
+WebServer server(80);
 
 void setup()
 {
@@ -46,6 +47,11 @@ void setup()
 
   configureGPS();
 
+  //Joins the home network if /wifi.txt exists, does not block if it does not.
+  //Has to stay behind startupRadio(): bringing the WiFi stack up while the
+  //SX1262 is being initialised makes radio.begin() fail with -707.
+  startWifiOta();
+
   exitSetup();
   PWM_active = 1;
   
@@ -58,6 +64,7 @@ int wetness_counter = 0;
 void loop()
 {
   checkSerial();
+  handleOta();
 
   if(millis()-last_packet > 500 && millis() - radioBufferResetTimeout > 5000)
   {
@@ -92,6 +99,10 @@ void loop()
     else if(usrConf.data_src == 2)
     {
       getVescLoop();
+    }
+    else if(usrConf.data_src == 3)
+    {
+      getKissLoop();
     }
   }
 

@@ -216,9 +216,23 @@ void checkStartupButtons()
     {
       //USB Mode
       Serial.println("USB Mode, type '?' for info...");
+      startWifiOta();
       while(1)
       {
-        scroll3Digits(LET_U, 5, LET_B, 200);
+        if(ota_started)
+        {
+          //Once the network is up the display stops scrolling: scroll3Digits
+          //blocks for almost three seconds, which is far too slow to serve
+          //the web terminal from here
+          displayDigits(0, LET_T);
+          updateDisplay();
+          delay(10);
+        }
+        else
+        {
+          scroll3Digits(LET_U, 5, LET_B, 200);
+        }
+        handleOta();
         checkSerial();
       }
     }
@@ -301,6 +315,16 @@ void checkSerial()
           Serial.println(" Exit by user");
           exitChargeScreen = 1;
         }
+        else if (command.startsWith("?setWifi")) {
+          String data = command.substring(command.indexOf(":") + 1);
+          serSetWifi(data);
+        }
+        else if (command == "?clearWifi") {
+          serClearWifi();
+        }
+        else if (command == "?printWifi") {
+          serPrintWifi();
+        }
         else if(command == "?printRSSI")
         {
           serPrintRSSI();
@@ -327,6 +351,9 @@ void checkSerial()
           Serial.println("?reboot - Reboot the remote");
           Serial.println("?exitChg - Exit the charge screen");
           Serial.println("?printRSSI - Print RSSI and SNR values until sent 'quit'");
+          Serial.println("?setWifi:<ssid>,<pw>,<maintenance pw> - Store WiFi credentials (no commas in ssid/maintenance pw)");
+          Serial.println("?clearWifi - Clear WiFi credentials from SPIFFS");
+          Serial.println("?printWifi - Print WiFi status");
           Serial.println("?printInputs - Print raw input values until sent 'quit'");
           Serial.println("?printTasks - Print task stack usage until sent 'quit'");
           Serial.println("?printPackets - Print current state of tx,rx packets and relation");
@@ -351,6 +378,37 @@ void serApplyConf()
 void serSetConf(String data) {
   Serial.print("Setting configuration to: ");
   Serial.println(data);
+
+  // Check before writing. A broken string makes readConfFromSPIFFS() fail at
+  // the next boot, the default conf gets written and the pairing is lost.
+  // Over USB that is annoying, over WiFi on a Rx that sits screwed into the
+  // hull it is expensive.
+  size_t checkLen = 0;
+  mbedtls_base64_decode(NULL, 0, &checkLen, (const uint8_t*)data.c_str(), data.length());
+  if (checkLen != sizeof(confStruct)) {
+      Serial.print("Rejected, expected ");
+      Serial.print(sizeof(confStruct));
+      Serial.print(" byte but got ");
+      Serial.println(checkLen);
+      return;
+  }
+
+  uint8_t* checkData = new uint8_t[checkLen];
+  if (mbedtls_base64_decode(checkData, checkLen, &checkLen, (const uint8_t*)data.c_str(), data.length()) != 0) {
+      Serial.println("Rejected, invalid base64");
+      delete[] checkData;
+      return;
+  }
+  uint16_t checkVersion = checkData[0] | (checkData[1] << 8);
+  delete[] checkData;
+
+  if (checkVersion != SW_VERSION) {
+      Serial.print("Rejected, config version ");
+      Serial.print(checkVersion);
+      Serial.print(" but build is ");
+      Serial.println(SW_VERSION);
+      return;
+  }
   
   uint8_t* encodedData = new uint8_t[data.length()];
   // Call the function to fill the encodedData array
@@ -526,16 +584,21 @@ void checkCharger()
     }
     else if(chgstat > 6000 && chgstat < 10000)
     {
+      //On the charger, so it is on a cable and not in use: good moment for
+      //maintenance. Returns right away if there are no credentials stored.
+      startWifiOta();
       setBrightness(0x01);
       advanceChargeAnimation();
       uint8_t chglevel = map(c_bat_volt, 330, 420, 0, 10);
       displayHorzBargraph(7,chglevel);
       updateDisplay();
       checkSerial();
+      handleOta();
       delay(200);
     }
     else if(chgstat > 11000 && chgstat < 18000)
     {
+      startWifiOta();
       setBrightness(0x01);
       displayBuffer[1] = 0x1F;
       displayBuffer[4] = 0x1F;
@@ -544,6 +607,7 @@ void checkCharger()
       displayHorzBargraph(7,10);
       updateDisplay();
       checkSerial();
+      handleOta();
       delay(200);
     }
     else
@@ -571,6 +635,11 @@ void checkCharger()
       }
     }
   }
+
+  //Leaving the charge screen means the remote is about to be used, so WiFi
+  //goes off again before the radio is even started
+  stopWifiOta();
+
   displayHorzBargraph(7,0);
   setBrightness(0x0F);
 }
@@ -626,4 +695,64 @@ void printConfStruct(const confStruct &data) {
     }
 
     Serial.println("----------------------");
+}
+
+
+void serSetWifi(String data)
+{
+  int first = data.indexOf(',');
+  int last = data.lastIndexOf(',');
+
+  if(first < 0 || last <= first)
+  {
+    Serial.println("Usage: ?setWifi:<ssid>,<wifi password>,<maintenance password>");
+    return;
+  }
+
+  String ssid = data.substring(0, first);
+  String pass = data.substring(first + 1, last);
+  String otapass = data.substring(last + 1);
+
+  ssid.trim();
+  otapass.trim();
+
+  if(ssid.length() == 0 || otapass.length() == 0)
+  {
+    Serial.println("SSID and maintenance password must not be empty");
+    return;
+  }
+
+  saveWifiToSPIFFS(ssid, pass, otapass);
+  Serial.println("Reboot to apply.");
+}
+
+void serClearWifi()
+{
+  Serial.println("Deleting wifi conf from SPIFFS");
+  deleteWifiFromSPIFFS();
+}
+
+void serPrintWifi()
+{
+  Serial.print("SSID: ");
+  if(wifi_ssid.length()) Serial.println(wifi_ssid);
+  else Serial.println("<none>");
+
+  Serial.print("Host: ");
+  Serial.println(makeHostname());
+
+  Serial.print("Wifi: ");
+  if(!wifi_active)
+  {
+    Serial.println("off");
+  }
+  else if(WiFi.status() == WL_CONNECTED)
+  {
+    Serial.print("connected, IP: ");
+    Serial.println(WiFi.localIP());
+  }
+  else
+  {
+    Serial.println("connecting");
+  }
 }

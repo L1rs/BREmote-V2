@@ -3,4 +3,5 @@
 *.br*
 /Electronics/openfoil
 /Releases
-/Inofficial
+/Inofficial.DS_Store
+build/

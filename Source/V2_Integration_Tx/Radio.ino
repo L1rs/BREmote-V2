@@ -4,7 +4,15 @@ void startupRadio()
 
   SPI.begin(P_SPI_SCK, P_SPI_MISO, P_SPI_MOSI);
 
-  radio.standbyXOSC = true;
+  //Left off deliberately. Setting it before begin() puts the chip into XOSC
+  //standby before setTCXO() has powered the TCXO, so the following commands
+  //are rejected: begin() then fails with -707. Whether it slips through is
+  //pure code layout luck, which is why the original works and almost any
+  //change to this sketch breaks it.
+  //Switching it on after begin() is no good either: with the TCXO now really
+  //configured, every transmit-to-receive transition waits for the TCXO to
+  //start, and the reply from the Rx arrives while the radio is still busy.
+  radio.standbyXOSC = false;
 
   if(usrConf.rf_power < -9 || usrConf.rf_power > 22)
   {
@@ -52,6 +60,10 @@ void startupRadio()
   radio.implicitHeader(4);
   radio.setCRC(0);
   radio.setRxBandwidth(250);
+
+  //Now that the TCXO is up, put the fallback mode back where Luddi96 had it
+  radio.standbyXOSC = true;
+  radio.fallbackToXOSC();
 
   Serial.print(" TOA: ");
   Serial.print(radio.getTimeOnAir(4));
