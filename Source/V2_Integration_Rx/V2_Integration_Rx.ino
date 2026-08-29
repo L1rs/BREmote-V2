@@ -18,9 +18,6 @@ void setup()
   getConfFromSPIFFS();
   getBCFromSPIFFS();
 
-  //Joins the home network if /wifi.txt exists, does not block if it does not
-  startWifiOta();
-
   startupRadio();
   radio.setPacketReceivedAction(packetReceived);
   radio.implicitHeader(6);
@@ -49,6 +46,11 @@ void setup()
   xTaskCreatePinnedToCore(checkConnStatus, "Check_conn_staus_200ms", 2048, NULL, 2, &checkConnStatusHandle, 0);
 
   configureGPS();
+
+  //Joins the home network if /wifi.txt exists, does not block if it does not.
+  //Has to stay behind startupRadio(): bringing the WiFi stack up while the
+  //SX1262 is being initialised makes radio.begin() fail with -707.
+  startWifiOta();
 
   exitSetup();
   PWM_active = 1;

@@ -4,7 +4,12 @@ void startupRadio()
 
   SPI.begin(P_SPI_SCK, P_SPI_MISO, P_SPI_MOSI);
 
-  radio.standbyXOSC = true;
+  //Has to stay off until begin() is through. With a TCXO the chip cannot
+  //enter XOSC standby before the TCXO is powered, and begin() then fails with
+  //-707. It only surfaced once the WiFi stack was linked in, which shifts the
+  //timing enough to expose it. Switched on right after begin() below, so the
+  //radio still uses XOSC standby in operation the way it always did.
+  radio.standbyXOSC = false;
 
   if(usrConf.rf_power < -9 || usrConf.rf_power > 22)
   {
@@ -46,6 +51,8 @@ void startupRadio()
     Serial.println("Error, unsupported HF setting");
     while(1) scroll4Digits(LET_E, LET_H, LET_F, LET_C, 200);
   }
+
+  radio.standbyXOSC = true;
 
   //radio.setCurrentLimit(60.0);
   radio.setDio2AsRfSwitch(true);
