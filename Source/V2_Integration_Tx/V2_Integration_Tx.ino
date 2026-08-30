@@ -1,6 +1,6 @@
 #include "BREmote_V2_Tx.h"
 
-SX1262Fallback radio = new Module(P_LORA_NSS, P_LORA_DIO, P_LORA_RST, P_LORA_BUSY);
+SX1262 radio = new Module(P_LORA_NSS, P_LORA_DIO, P_LORA_RST, P_LORA_BUSY);
 Adafruit_ADS1115 ads;
 Ticker ticksrc;
 WebServer server(80);
@@ -99,13 +99,14 @@ void loop()
     }
     else
     {
-      //Page 0 is the display as it always was. The other pages only become
-      //reachable when steering is switched off, see Hall.ino
-      if(display_page == 1)
+      //With steering off the toggle cycles these pages, board battery first.
+      //The last page falls through to the speed display below, which is also
+      //what every other steer_enabled setting shows.
+      if(usrConf.steer_enabled == 2 && display_page == 0)
       {
         displayValue(telemetry.foil_bat);
       }
-      else if(display_page == 2)
+      else if(usrConf.steer_enabled == 2 && display_page == 1)
       {
         displayValue(telemetry.foil_temp);
       }

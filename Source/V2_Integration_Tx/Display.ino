@@ -502,10 +502,10 @@ void displayValue(uint8_t val)
 //5 stands for S as everywhere else in this sketch, see "SAVE" and "USB".
 void showPageLabel()
 {
-  uint8_t label = 5;
+  uint8_t label = 5;   //S for the speed page, which is the last one
 
-  if(display_page == 1) label = LET_B;
-  else if(display_page == 2) label = LET_C;
+  if(display_page == 0) label = LET_B;
+  else if(display_page == 1) label = LET_C;
 
   displayDigits(label, DASH);
   updateDisplay();

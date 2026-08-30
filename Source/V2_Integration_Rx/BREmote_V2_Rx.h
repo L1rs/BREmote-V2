@@ -7,7 +7,7 @@
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 
-#include <RadioLib.h> //V7.1.2
+#include <RadioLib.h> //Needs current git master, see note below
 #include <Wire.h>
 #include <Adafruit_AW9523.h> //V1.0.5, BusIO 1.17.0
 #include "driver/rmt_tx.h"
@@ -29,23 +29,6 @@
 #include <Update.h>
 
 #include "webserial.h"
-
-/*
-** RadioLib writes the Rx/Tx fallback mode inside begin(), taken from
-** standbyXOSC, and exposes no setter for it afterwards. begin() has to run
-** with standbyXOSC off, otherwise it tries to enter XOSC standby before the
-** TCXO is powered and fails with -707. So the mode is written again once
-** begin() is through. Without it the chip falls back to RC standby after
-** every packet and the oscillator stops between packets.
-*/
-class SX1262Fallback : public SX1262 {
-  public:
-    SX1262Fallback(Module* m) : SX1262(m) {}
-    int16_t fallbackToXOSC() {
-      uint8_t data = RADIOLIB_SX126X_RX_TX_FALLBACK_MODE_STDBY_XOSC;
-      return this->getMod()->SPIwriteStream(RADIOLIB_SX126X_CMD_SET_RX_TX_FALLBACK_MODE, &data, 1);
-    }
-};
 
 #define SW_VERSION 2
 const char* CONF_FILE_PATH = "/data.txt";

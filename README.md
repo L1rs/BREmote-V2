@@ -19,7 +19,7 @@ The hardware is untouched. Both boards still run an ESP32-C3 with an SX1262 (Hel
 
 **Info pages on the remote display.** With steering switched off, the toggle cycles the display through speed, board battery and ESC temperature. See [Info pages](#info-pages-on-the-remote-display).
 
-There is also a **fix to the radio initialisation** that everyone building on this code should know about, described under [Radio init](#radio-init-fix).
+If you are going to build this yourself, read [Building: RadioLib from git](#building-radiolib-from-git) first. It is not optional, and the failure mode is nasty.
 
 ---
 
@@ -32,7 +32,7 @@ There is also a **fix to the radio initialisation** that everyone building on th
 | `Source/V2.2.7.2-L1rs1_Integration_Tx.ino.bin` | Remote, app only |
 | `Source/V2.2.7.2-L1rs1_Integration_Tx.ino.merged.bin` | Remote, full image |
 
-Built with the Arduino IDE, esp32 core 3.3.11, board *ESP32C3 Dev Module*, partition scheme *Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)*. That is the same layout Luddi96 uses, so your stored configuration and pairing survive an update.
+Built with the Arduino IDE, esp32 core 3.3.11, **RadioLib from git master** (see below), board *ESP32C3 Dev Module*, partition scheme *Default 4MB with spiffs (1.2MB APP/1.5MB SPIFFS)*. That is the same layout Luddi96 uses, so your stored configuration and pairing survive an update.
 
 For a first flash over USB use the `merged.bin` with the [Espressif Flash Download Tool](https://dl.espressif.com/public/flash_download_tool.zip) at address `0x0`. **This erases the configuration**, so you will have to calibrate and pair again. To keep your settings, flash the plain `.ino.bin` to `0x10000` instead, or use the Arduino IDE.
 
@@ -131,9 +131,11 @@ With `steer_enabled = 2`, **hold the toggle right** (throttle released) to step 
 
 | Page | Shows | Marker |
 |---|---|---|
-| 1 | Speed | `S` |
-| 2 | Board battery in percent | `b` |
-| 3 | ESC or VESC temperature in °C | `C` |
+| 1 | Board battery in percent | `b` |
+| 2 | ESC or VESC temperature in °C | `C` |
+| 3 | Speed | `S` |
+
+The battery comes first because that is the value you actually want at a glance, and until now it was only readable as the ten-step bar along the bottom edge. The speed page is the display every other `steer_enabled` setting shows.
 
 The marker flashes up briefly when you switch, then the value appears. Gear changes with a short toggle press and locking with a long left press are unchanged.
 
@@ -143,17 +145,26 @@ Note that `steer_enabled = 2` also releases the toggle when `no_gear` and `no_lo
 
 ---
 
-## Radio init fix
+## Building: RadioLib from git
 
-Worth knowing if you build on this code.
+**The RadioLib versions in the Arduino library manager will not work.** You need the current git master:
 
-`startupRadio()` sets `radio.standbyXOSC = true` before `radio.begin()`. That is the wrong order: entering XOSC standby needs a running oscillator, but the TCXO is only powered by `setTCXO()`, which RadioLib calls afterwards. Whether the rejected command surfaces is a matter of code layout — the original happens to get away with it, but **almost any addition to the sketch makes `begin()` fail with `-707`** and the board sits in the error loop with no radio.
+```bash
+cd ~/Documents/Arduino/libraries
+git clone https://github.com/jgromes/RadioLib.git
+```
 
-Running `begin()` in RC standby fixes that, but `begin()` also latches the **Rx/Tx fallback mode** from the same flag, and RadioLib exposes no setter for it. The chip then drops to RC standby after every packet, the oscillator stops, and the remote's receive window opens too late to catch the reply — the link goes one-way.
+`startupRadio()` sets `radio.standbyXOSC = true` before `radio.begin()`, which keeps the oscillator running between packets so the turnaround from transmit to receive stays short. Up to and including RadioLib 7.7.1 that had two bugs: setting the flag before `begin()` made it fail with `-707`, and setting it afterwards silently did nothing, because `begin()` latches the Rx/Tx fallback mode and there was no way to change it later.
 
-So this fork runs `begin()` with the flag off and writes the fallback mode back afterwards, through a small subclass of `SX1262`. Measured on the bench: 100 % of packets acknowledged, RSSI −19 dBm.
+Both were fixed on 2026-07-04 ([jgromes/RadioLib#1827](https://github.com/jgromes/RadioLib/issues/1827), commit `88f38e9`), which also added `setStandbyXOSC()`. The last release, 7.7.1, is from 2026-05-31 and predates that, so the library manager still ships the broken version.
 
----
+Symptoms if you get this wrong, in the order you will meet them:
+
+`begin()` returns `-707` and the board sits in `while(1) blinkErr(...)`. **The serial console keeps answering**, because `blinkErr()` calls `checkSerial()` — so `?conf` works fine while the radio is dead and neither the PWM generation nor the radio tasks ever started. Do not judge a flash by whether the console responds; read the boot log and look for `Starting Radio ... Done`.
+
+If you then "fix" it by moving the flag after `begin()`, the `-707` goes away and the receiver hears the remote perfectly, but the fallback mode stays at RC standby. The oscillator stops after every packet, the remote opens its receive window too late for the reply, and the link is one-way: the receiver acts on your throttle while the remote sits in failsafe. Ask me how I know.
+
+Note that `BREmote_V2_Rx.h` and `_Tx.h` upstream still say `//V7.1.2` next to the include. That comment predates all of this.
 
 ## Serial commands added by this fork
 
@@ -183,7 +194,7 @@ Unchanged from upstream. The [original README](https://github.com/Luddi96/BREmot
 * Remote joins the network while charging and in USB mode, receiver at boot until the remote connects
 * KISS telemetry from BLHeli_32 and AM32 ESCs (`data_src` 3)
 * Info pages on the remote display (`steer_enabled` 2)
-* Fix radio init failing with `-707`, and the one-way link that came with the first attempt at fixing it
+* Document that RadioLib from git master is required, and what breaks without it
 * `?setConf:` rejects a configuration of the wrong size or version instead of writing it
 
 ---
